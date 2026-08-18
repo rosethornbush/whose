@@ -194,7 +194,9 @@ func lookupASN(
 		return
 	}
 
-	printJSON(result.Raw)
+	if err := output.ASN(os.Stdout, result.Autnum); err != nil {
+		fail(err)
+	}
 }
 
 func fetchRegistry(ctx context.Context, registryURL string) *http.Response {
