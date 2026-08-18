@@ -62,7 +62,7 @@ func main() {
 		lookupDomain(ctx, q.Value, jsonOutput, rawOutput)
 
 	case query.IP:
-		lookupIP(ctx, q.Value, rawOutput)
+		lookupIP(ctx, q.Value, jsonOutput, rawOutput)
 
 	case query.ASN:
 		fail(fmt.Errorf("ASN queries are not supported yet"))
@@ -111,6 +111,7 @@ func lookupDomain(
 func lookupIP(
 	ctx context.Context,
 	address string,
+	jsonOutput bool,
 	rawOutput bool,
 ) {
 	addr, err := netip.ParseAddr(address)
@@ -144,8 +145,14 @@ func lookupIP(
 		return
 	}
 
-	// Human-readable IP output comes in the next commit.
-	printJSON(result.Raw)
+	if jsonOutput {
+		printJSON(result.Raw)
+		return
+	}
+
+	if err := output.IP(os.Stdout, result.Network); err != nil {
+		fail(err)
+	}
 }
 
 func fetchRegistry(ctx context.Context, registryURL string) *http.Response {
