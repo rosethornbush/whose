@@ -27,11 +27,11 @@ func TestLookupASNMatchesRange(t *testing.T) {
 	}
 }
 
-func TestLookupASNSupportsSingleASNRange(t *testing.T) {
+func TestLookupASNSupportsSingleASN(t *testing.T) {
 	data := `{
 		"services": [
 			[
-				["13335-13335"],
+				["13335"],
 				["https://rdap.example/"]
 			]
 		]
@@ -94,7 +94,7 @@ func TestLookupASNRejectsInvalidRange(t *testing.T) {
 	data := `{
 		"services": [
 			[
-				["13335"],
+				["not-a-range"],
 				["https://rdap.example/"]
 			]
 		]

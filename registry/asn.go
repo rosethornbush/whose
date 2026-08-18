@@ -60,15 +60,16 @@ func LookupASN(r io.Reader, asn uint32) (string, error) {
 }
 
 func parseASNRange(value string) (uint32, uint32, error) {
-	parts := strings.Split(value, "-")
-
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return 0, 0, fmt.Errorf("expected start-end range")
-	}
+	parts := strings.SplitN(value, "-", 2)
 
 	start, err := strconv.ParseUint(parts[0], 10, 32)
 	if err != nil {
 		return 0, 0, err
+	}
+
+	if len(parts) == 1 {
+		n := uint32(start)
+		return n, n, nil
 	}
 
 	end, err := strconv.ParseUint(parts[1], 10, 32)

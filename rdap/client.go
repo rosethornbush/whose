@@ -105,3 +105,48 @@ func (c *Client) LookupIP(
 		Raw:     body,
 	}, nil
 }
+
+func (c *Client) LookupASN(
+	ctx context.Context,
+	baseURL string,
+	asn uint32,
+) (*ASNResult, error) {
+	endpoint := fmt.Sprintf(
+		"%s/autnum/%d",
+		strings.TrimRight(baseURL, "/"),
+		asn,
+	)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create RDAP request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/rdap+json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request RDAP data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("RDAP server returned %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read RDAP response: %w", err)
+	}
+
+	var autnum Autnum
+
+	if err := json.Unmarshal(body, &autnum); err != nil {
+		return nil, fmt.Errorf("decode RDAP response: %w", err)
+	}
+
+	return &ASNResult{
+		Autnum: autnum,
+		Raw:    body,
+	}, nil
+}

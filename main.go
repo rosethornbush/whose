@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -65,7 +66,7 @@ func main() {
 		lookupIP(ctx, q.Value, jsonOutput, rawOutput)
 
 	case query.ASN:
-		fail(fmt.Errorf("ASN queries are not supported yet"))
+		lookupASN(ctx, q.Value, jsonOutput, rawOutput)
 
 	default:
 		fail(fmt.Errorf("unsupported query type"))
@@ -153,6 +154,47 @@ func lookupIP(
 	if err := output.IP(os.Stdout, result.Network); err != nil {
 		fail(err)
 	}
+}
+
+func lookupASN(
+	ctx context.Context,
+	value string,
+	jsonOutput bool,
+	rawOutput bool,
+) {
+	n, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		fail(fmt.Errorf("invalid ASN %q: %w", value, err))
+	}
+
+	asn := uint32(n)
+
+	resp := fetchRegistry(ctx, "https://data.iana.org/rdap/asn.json")
+	defer resp.Body.Close()
+
+	server, err := registry.LookupASN(resp.Body, asn)
+	if err != nil {
+		fail(err)
+	}
+
+	client := rdap.NewClient()
+
+	result, err := client.LookupASN(ctx, server, asn)
+	if err != nil {
+		fail(err)
+	}
+
+	if rawOutput {
+		printRaw(result.Raw)
+		return
+	}
+
+	if jsonOutput {
+		printJSON(result.Raw)
+		return
+	}
+
+	printJSON(result.Raw)
 }
 
 func fetchRegistry(ctx context.Context, registryURL string) *http.Response {
