@@ -51,13 +51,13 @@ func main() {
 
 	client := rdap.NewClient()
 
-	body, err := client.LookupDomain(ctx, server, domain)
+	result, err := client.LookupDomain(ctx, server, domain)
 	if err != nil {
 		fail(err)
 	}
 
 	var response any
-	if err := json.Unmarshal(body, &response); err != nil {
+	if err := json.Unmarshal(result.Raw, &response); err != nil {
 		fail(fmt.Errorf("decode RDAP response: %w", err))
 	}
 

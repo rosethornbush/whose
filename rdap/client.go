@@ -2,6 +2,7 @@ package rdap
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,7 +23,7 @@ func NewClient() *Client {
 	}
 }
 
-func (c *Client) LookupDomain(ctx context.Context, baseURL, domain string) ([]byte, error) {
+func (c *Client) LookupDomain(ctx context.Context, baseURL, domain string) (*DomainResult, error) {
 	endpoint := strings.TrimRight(baseURL, "/") +
 		"/domain/" +
 		url.PathEscape(domain)
@@ -50,5 +51,14 @@ func (c *Client) LookupDomain(ctx context.Context, baseURL, domain string) ([]by
 		return nil, fmt.Errorf("read RDAP response: %w", err)
 	}
 
-	return body, nil
+	var domainResponse Domain
+
+	if err := json.Unmarshal(body, &domainResponse); err != nil {
+		return nil, fmt.Errorf("decode RDAP response: %w", err)
+	}
+
+	return &DomainResult{
+		Domain: domainResponse,
+		Raw:    body,
+	}, nil
 }
