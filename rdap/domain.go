@@ -31,11 +31,3 @@ type Nameserver struct {
 type SecureDNS struct {
 	DelegationSigned bool `json:"delegationSigned"`
 }
-
-type Entity struct {
-	ObjectClassName string   `json:"objectClassName"`
-	Handle          string   `json:"handle,omitempty"`
-	Roles           []string `json:"roles,omitempty"`
-	Entities        []Entity `json:"entities,omitempty"`
-	VCardArray      any      `json:"vcardArray,omitempty"`
-}
