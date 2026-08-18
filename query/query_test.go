@@ -66,3 +66,10 @@ func TestParseInvalidASN(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestParseRejectsScopedIPv6(t *testing.T) {
+	_, err := Parse("fe80::1%en0")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}

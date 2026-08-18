@@ -22,6 +22,9 @@ type Query struct {
 
 func Parse(input string) (Query, error) {
 	if addr, err := netip.ParseAddr(input); err == nil {
+		if addr.Zone() != "" {
+			return Query{}, fmt.Errorf("scoped IP addresses are not supported")
+		}
 		return Query{
 			Kind:  IP,
 			Value: addr.String(),
