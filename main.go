@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rosethornbush/whose/output"
+	"github.com/rosethornbush/whose/query"
 	"github.com/rosethornbush/whose/rdap"
 	"github.com/rosethornbush/whose/registry"
 )
@@ -18,7 +19,7 @@ const dnsRegistryURL = "https://data.iana.org/rdap/dns.json"
 
 func main() {
 	var (
-		query      string
+		queryInput string
 		jsonOutput bool
 		rawOutput  bool
 	)
@@ -34,20 +35,29 @@ func main() {
 				usage(fmt.Sprintf("unknown option %q", arg))
 			}
 
-			if query != "" {
+			if queryInput != "" {
 				usage("expected exactly one query")
 			}
 
-			query = arg
+			queryInput = arg
 		}
 	}
 
-	if query == "" {
+	if queryInput == "" {
 		usage("missing query")
 	}
 
 	if jsonOutput && rawOutput {
 		usage("--json and --raw are mutually exclusive")
+	}
+
+	q, err := query.Parse(queryInput)
+	if err != nil {
+		fail(err)
+	}
+
+	if q.Kind != query.Domain {
+		fail(fmt.Errorf("query type not supported yet"))
 	}
 
 	ctx := context.Background()
@@ -71,14 +81,14 @@ func main() {
 		fail(fmt.Errorf("IANA registry returned %s", resp.Status))
 	}
 
-	server, err := registry.LookupDomain(resp.Body, query)
+	server, err := registry.LookupDomain(resp.Body, q.Value)
 	if err != nil {
 		fail(err)
 	}
 
 	client := rdap.NewClient()
 
-	result, err := client.LookupDomain(ctx, server, query)
+	result, err := client.LookupDomain(ctx, server, q.Value)
 	if err != nil {
 		fail(err)
 	}
