@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/rosethornbush/whose/output"
 	"github.com/rosethornbush/whose/rdap"
 	"github.com/rosethornbush/whose/registry"
 )
@@ -56,18 +56,22 @@ func main() {
 		fail(err)
 	}
 
-	var response any
-	if err := json.Unmarshal(result.Raw, &response); err != nil {
-		fail(fmt.Errorf("decode RDAP response: %w", err))
+	if err := output.Domain(os.Stdout, result.Domain); err != nil {
+		fail(err)
 	}
 
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	encoder.SetEscapeHTML(false)
+	// var response any
+	// if err := json.Unmarshal(result.Raw, &response); err != nil {
+	// 	fail(fmt.Errorf("decode RDAP response: %w", err))
+	// }
 
-	if err := encoder.Encode(response); err != nil {
-		fail(fmt.Errorf("encode RDAP response: %w", err))
-	}
+	// encoder := json.NewEncoder(os.Stdout)
+	// encoder.SetIndent("", "  ")
+	// encoder.SetEscapeHTML(false)
+
+	// if err := encoder.Encode(response); err != nil {
+	// 	fail(fmt.Errorf("encode RDAP response: %w", err))
+	// }
 }
 
 func fail(err error) {
