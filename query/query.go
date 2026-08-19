@@ -5,6 +5,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/idna"
 )
 
 type Kind int
@@ -25,16 +27,17 @@ func Parse(input string) (Query, error) {
 		if addr.Zone() != "" {
 			return Query{}, fmt.Errorf("scoped IP addresses are not supported")
 		}
+
 		return Query{
 			Kind:  IP,
 			Value: addr.String(),
 		}, nil
 	}
 
-	upper := strings.ToUpper(input)
-
-	if strings.HasPrefix(upper, "AS") {
-		value := strings.TrimPrefix(upper, "AS")
+	if len(input) >= 2 &&
+		(input[0] == 'A' || input[0] == 'a') &&
+		(input[1] == 'S' || input[1] == 's') {
+		value := input[2:]
 
 		if value != "" {
 			allDigits := true
@@ -72,17 +75,23 @@ func Parse(input string) (Query, error) {
 }
 
 func parseDomain(input string) (string, error) {
-	domain := strings.ToLower(strings.TrimSuffix(input, "."))
+	ascii, err := idna.Lookup.ToASCII(input)
+	if err != nil {
+		return "", fmt.Errorf("invalid domain %q: %w", input, err)
+	}
 
-	if domain == "" {
+	ascii = strings.TrimSuffix(ascii, ".")
+	ascii = strings.ToLower(ascii)
+
+	if ascii == "" {
 		return "", fmt.Errorf("invalid domain %q", input)
 	}
 
-	if len(domain) > 253 {
+	if len(ascii) > 253 {
 		return "", fmt.Errorf("invalid domain %q", input)
 	}
 
-	for _, label := range strings.Split(domain, ".") {
+	for _, label := range strings.Split(ascii, ".") {
 		if label == "" || len(label) > 63 {
 			return "", fmt.Errorf("invalid domain %q", input)
 		}
@@ -102,5 +111,5 @@ func parseDomain(input string) (string, error) {
 		}
 	}
 
-	return domain, nil
+	return ascii, nil
 }

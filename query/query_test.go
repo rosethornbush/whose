@@ -22,6 +22,13 @@ func TestParse(t *testing.T) {
 
 		{"AS13335", ASN, "13335"},
 		{"as13335", ASN, "13335"},
+
+		{"münchen.de", Domain, "xn--mnchen-3ya.de"},
+		{"bücher.example", Domain, "xn--bcher-kva.example"},
+		{"MÜNCHEN.DE", Domain, "xn--mnchen-3ya.de"},
+		{"💩.com", Domain, "xn--ls8h.com"},
+		{"münchen。de。", Domain, "xn--mnchen-3ya.de"},
+		{"aſ13335", Domain, "as13335"},
 	}
 
 	for _, tt := range tests {
@@ -71,5 +78,19 @@ func TestParseRejectsScopedIPv6(t *testing.T) {
 	_, err := Parse("fe80::1%en0")
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestParseInvalidIDN(t *testing.T) {
+	tests := []string{
+		"\u200d.com",
+	}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			if _, err := Parse(input); err == nil {
+				t.Fatal("expected error")
+			}
+		})
 	}
 }
