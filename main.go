@@ -1,15 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/netip"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/rosethornbush/whose/output"
 	"github.com/rosethornbush/whose/query"
@@ -79,10 +78,16 @@ func lookupDomain(
 	jsonOutput bool,
 	rawOutput bool,
 ) {
-	resp := fetchRegistry(ctx, "https://data.iana.org/rdap/dns.json")
-	defer resp.Body.Close()
+	data, err := registry.Fetch(
+		ctx,
+		"dns",
+		"https://data.iana.org/rdap/dns.json",
+	)
+	if err != nil {
+		fail(err)
+	}
 
-	server, err := registry.LookupDomain(resp.Body, domain)
+	server, err := registry.LookupDomain(bytes.NewReader(data), domain)
 	if err != nil {
 		fail(err)
 	}
@@ -120,16 +125,20 @@ func lookupIP(
 		fail(fmt.Errorf("invalid IP address %q: %w", address, err))
 	}
 
+	registryName := "ipv4"
 	registryURL := "https://data.iana.org/rdap/ipv4.json"
 
 	if addr.Is6() {
+		registryName = "ipv6"
 		registryURL = "https://data.iana.org/rdap/ipv6.json"
 	}
 
-	resp := fetchRegistry(ctx, registryURL)
-	defer resp.Body.Close()
+	data, err := registry.Fetch(ctx, registryName, registryURL)
+	if err != nil {
+		fail(err)
+	}
 
-	server, err := registry.LookupIP(resp.Body, addr)
+	server, err := registry.LookupIP(bytes.NewReader(data), addr)
 	if err != nil {
 		fail(err)
 	}
@@ -169,10 +178,16 @@ func lookupASN(
 
 	asn := uint32(n)
 
-	resp := fetchRegistry(ctx, "https://data.iana.org/rdap/asn.json")
-	defer resp.Body.Close()
+	data, err := registry.Fetch(
+		ctx,
+		"asn",
+		"https://data.iana.org/rdap/asn.json",
+	)
+	if err != nil {
+		fail(err)
+	}
 
-	server, err := registry.LookupASN(resp.Body, asn)
+	server, err := registry.LookupASN(bytes.NewReader(data), asn)
 	if err != nil {
 		fail(err)
 	}
@@ -197,34 +212,6 @@ func lookupASN(
 	if err := output.ASN(os.Stdout, result.Autnum); err != nil {
 		fail(err)
 	}
-}
-
-func fetchRegistry(ctx context.Context, registryURL string) *http.Response {
-	httpClient := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		registryURL,
-		nil,
-	)
-	if err != nil {
-		fail(fmt.Errorf("create IANA registry request: %w", err))
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		fail(fmt.Errorf("request IANA registry: %w", err))
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		resp.Body.Close()
-		fail(fmt.Errorf("IANA registry returned %s", resp.Status))
-	}
-
-	return resp
 }
 
 func printJSON(raw []byte) {
