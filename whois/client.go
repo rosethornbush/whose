@@ -14,6 +14,7 @@ const defaultMaxDepth = 5
 
 type Client struct {
 	dialer net.Dialer
+	lookup func(context.Context, string, string) ([]byte, error)
 }
 
 type Response struct {
@@ -22,11 +23,15 @@ type Response struct {
 }
 
 func NewClient() *Client {
-	return &Client{
+	c := &Client{
 		dialer: net.Dialer{
 			Timeout: 10 * time.Second,
 		},
 	}
+
+	c.lookup = c.Lookup
+
+	return c
 }
 
 func (c *Client) Lookup(
@@ -89,7 +94,12 @@ func (c *Client) LookupChain(
 
 		visited[key] = true
 
-		body, err := c.Lookup(ctx, server, query)
+		lookup := c.lookup
+		if lookup == nil {
+			lookup = c.Lookup
+		}
+
+		body, err := lookup(ctx, server, query)
 		if err != nil {
 			return responses, err
 		}
