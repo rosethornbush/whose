@@ -15,6 +15,10 @@ func IP(w io.Writer, network rdap.IPNetwork) error {
 		fmt.Fprintf(&b, "Name:        %s\n", network.Name)
 	}
 
+	if name := entityName(network.Entities); name != "" {
+		fmt.Fprintf(&b, "Org:         %s\n", name)
+	}
+
 	if network.Handle != "" {
 		fmt.Fprintf(&b, "Handle:      %s\n", network.Handle)
 	}
@@ -39,12 +43,20 @@ func IP(w io.Writer, network rdap.IPNetwork) error {
 		fmt.Fprintf(&b, "Country:     %s\n", network.Country)
 	}
 
-	for _, event := range network.Events {
-		switch event.Action {
-		case "registration":
-			fmt.Fprintf(&b, "Created:     %s\n", event.Date)
-		case "last changed":
-			fmt.Fprintf(&b, "Updated:     %s\n", event.Date)
+	for _, action := range []string{"registration", "last changed"} {
+		for _, event := range network.Events {
+			if event.Action != action {
+				continue
+			}
+
+			switch action {
+			case "registration":
+				fmt.Fprintf(&b, "Created:     %s\n", event.Date)
+			case "last changed":
+				fmt.Fprintf(&b, "Updated:     %s\n", event.Date)
+			}
+
+			break
 		}
 	}
 

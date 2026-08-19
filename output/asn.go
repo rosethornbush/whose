@@ -21,6 +21,10 @@ func ASN(w io.Writer, autnum rdap.Autnum) error {
 		fmt.Fprintf(&b, "Name:        %s\n", autnum.Name)
 	}
 
+	if name := entityName(autnum.Entities); name != "" {
+		fmt.Fprintf(&b, "Org:         %s\n", name)
+	}
+
 	if autnum.StartAutnum != 0 &&
 		autnum.EndAutnum != 0 &&
 		autnum.StartAutnum != autnum.EndAutnum {

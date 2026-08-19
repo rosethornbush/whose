@@ -19,14 +19,38 @@ func Domain(w io.Writer, domain rdap.Domain) error {
 		fmt.Fprintf(&b, "Unicode:     %s\n", domain.UnicodeName)
 	}
 
-	for _, event := range domain.Events {
-		switch event.Action {
-		case "registration":
-			fmt.Fprintf(&b, "Created:     %s\n", event.Date)
-		case "last changed":
-			fmt.Fprintf(&b, "Updated:     %s\n", event.Date)
-		case "expiration":
-			fmt.Fprintf(&b, "Expires:     %s\n", event.Date)
+	for _, entity := range domain.Entities {
+		if !entity.HasRole("registrar") {
+			continue
+		}
+
+		name := entity.Name()
+		if name == "" {
+			name = entity.Organization()
+		}
+
+		if name != "" {
+			fmt.Fprintf(&b, "Registrar:   %s\n", name)
+			break
+		}
+	}
+
+	for _, action := range []string{"registration", "last changed", "expiration"} {
+		for _, event := range domain.Events {
+			if event.Action != action {
+				continue
+			}
+
+			switch action {
+			case "registration":
+				fmt.Fprintf(&b, "Created:     %s\n", event.Date)
+			case "last changed":
+				fmt.Fprintf(&b, "Updated:     %s\n", event.Date)
+			case "expiration":
+				fmt.Fprintf(&b, "Expires:     %s\n", event.Date)
+			}
+
+			break
 		}
 	}
 
@@ -43,8 +67,8 @@ func Domain(w io.Writer, domain rdap.Domain) error {
 		fmt.Fprintln(&b)
 		fmt.Fprintln(&b, "Nameservers:")
 
-		for _, ns := range domain.Nameservers {
-			fmt.Fprintf(&b, "  %s\n", strings.ToLower(ns.LDHName))
+		for _, nameserver := range domain.Nameservers {
+			fmt.Fprintf(&b, "  %s\n", strings.ToLower(nameserver.LDHName))
 		}
 	}
 
