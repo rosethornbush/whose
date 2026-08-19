@@ -49,11 +49,13 @@ func IP(w io.Writer, network rdap.IPNetwork) error {
 				continue
 			}
 
+			date := formatDate(event.Date)
+
 			switch action {
 			case "registration":
-				fmt.Fprintf(&b, "Created:     %s\n", event.Date)
+				fmt.Fprintf(&b, "Created:     %s\n", date)
 			case "last changed":
-				fmt.Fprintf(&b, "Updated:     %s\n", event.Date)
+				fmt.Fprintf(&b, "Updated:     %s\n", date)
 			}
 
 			break

@@ -41,13 +41,15 @@ func Domain(w io.Writer, domain rdap.Domain) error {
 				continue
 			}
 
+			date := formatDate(event.Date)
+
 			switch action {
 			case "registration":
-				fmt.Fprintf(&b, "Created:     %s\n", event.Date)
+				fmt.Fprintf(&b, "Created:     %s\n", date)
 			case "last changed":
-				fmt.Fprintf(&b, "Updated:     %s\n", event.Date)
+				fmt.Fprintf(&b, "Updated:     %s\n", date)
 			case "expiration":
-				fmt.Fprintf(&b, "Expires:     %s\n", event.Date)
+				fmt.Fprintf(&b, "Expires:     %s\n", date)
 			}
 
 			break
