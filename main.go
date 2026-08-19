@@ -18,6 +18,8 @@ import (
 	"github.com/rosethornbush/whose/whois"
 )
 
+var version = "dev"
+
 func main() {
 	var (
 		queryInput string
@@ -27,6 +29,9 @@ func main() {
 
 	for _, arg := range os.Args[1:] {
 		switch arg {
+		case "--version", "-v":
+			fmt.Printf("whose %s\n", version)
+			return
 		case "--json":
 			jsonOutput = true
 		case "--raw":
