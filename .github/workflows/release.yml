@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          mkdir -p dist
+
+          for target in \
+            linux/amd64 \
+            linux/arm64 \
+            darwin/amd64 \
+            darwin/arm64 \
+            windows/amd64 \
+            windows/arm64
+          do
+            GOOS="${target%/*}"
+            GOARCH="${target#*/}"
+            NAME="whose_${VERSION#v}_${GOOS}_${GOARCH}"
+
+            if [ "$GOOS" = "windows" ]; then
+              CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
+                go build -ldflags "-X main.version=$VERSION" \
+                -o "dist/whose.exe" .
+
+              (
+                cd dist
+                zip "${NAME}.zip" whose.exe
+                rm whose.exe
+              )
+            else
+              CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
+                go build -ldflags "-X main.version=$VERSION" \
+                -o "dist/whose" .
+
+              (
+                cd dist
+                tar -czf "${NAME}.tar.gz" whose
+                rm whose
+              )
+            fi
+          done
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum *.tar.gz *.zip > SHA256SUMS
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          gh release create "$VERSION" \
+            dist/* \
+            --title "$VERSION" \
+            --generate-notes
