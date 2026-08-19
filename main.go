@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/rosethornbush/whose/query"
 	"github.com/rosethornbush/whose/rdap"
 	"github.com/rosethornbush/whose/registry"
+	"github.com/rosethornbush/whose/whois"
 )
 
 func main() {
@@ -89,6 +91,11 @@ func lookupDomain(
 
 	server, err := registry.LookupDomain(bytes.NewReader(data), domain)
 	if err != nil {
+		if errors.Is(err, registry.ErrNoService) {
+			lookupWHOIS(ctx, domain, jsonOutput)
+			return
+		}
+
 		fail(err)
 	}
 
@@ -210,6 +217,43 @@ func lookupASN(
 	}
 
 	if err := output.ASN(os.Stdout, result.Autnum); err != nil {
+		fail(err)
+	}
+}
+
+func lookupWHOIS(
+	ctx context.Context,
+	domain string,
+	jsonOutput bool,
+) {
+	if jsonOutput {
+		fail(fmt.Errorf("JSON output is unavailable for WHOIS fallback"))
+	}
+
+	client := whois.NewClient()
+
+	responses, err := client.LookupChain(
+		ctx,
+		"whois.iana.org",
+		domain,
+	)
+	if err != nil && len(responses) == 0 {
+		fail(err)
+	}
+
+	for i, response := range responses {
+		if i > 0 {
+			if _, err := fmt.Fprintf(os.Stdout, "# %s\n\n", response.Server); err != nil {
+				fail(fmt.Errorf("write WHOIS referral header: %w", err))
+			}
+		}
+
+		if _, err := os.Stdout.Write(response.Body); err != nil {
+			fail(fmt.Errorf("write WHOIS response: %w", err))
+		}
+	}
+
+	if err != nil {
 		fail(err)
 	}
 }

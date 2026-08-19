@@ -2,6 +2,7 @@ package registry
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -12,6 +13,8 @@ type registry struct {
 }
 
 type service [2][]string
+
+var ErrNoService = errors.New("no RDAP service found")
 
 func LookupDomain(r io.Reader, domain string) (string, error) {
 	var reg registry
@@ -56,7 +59,7 @@ func LookupDomain(r io.Reader, domain string) (string, error) {
 	}
 
 	if bestURL == "" {
-		return "", fmt.Errorf("no RDAP server found for %q", domain)
+		return "", fmt.Errorf("%w for %q", ErrNoService, domain)
 	}
 
 	return bestURL, nil
