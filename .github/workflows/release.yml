@@ -41,31 +41,18 @@ jobs:
             NAME="whose_${VERSION#v}_${GOOS}_${GOARCH}"
 
             if [ "$GOOS" = "windows" ]; then
-              CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
-                go build -ldflags "-X main.version=$VERSION" \
-                -o "dist/whose.exe" .
-
-              (
-                cd dist
-                zip "${NAME}.zip" whose.exe
-                rm whose.exe
-              )
-            else
-              CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
-                go build -ldflags "-X main.version=$VERSION" \
-                -o "dist/whose" .
-
-              (
-                cd dist
-                tar -czf "${NAME}.tar.gz" whose
-                rm whose
-              )
+              NAME="${NAME}.exe"
             fi
+
+            CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
+              go build \
+                -ldflags "-X main.version=$VERSION" \
+                -o "dist/$NAME" .
           done
 
       - name: Generate checksums
         working-directory: dist
-        run: sha256sum *.tar.gz *.zip > SHA256SUMS
+        run: sha256sum whose_* > SHA256SUMS
 
       - name: Create GitHub release
         env:
