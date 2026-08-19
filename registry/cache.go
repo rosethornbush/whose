@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,18 +14,43 @@ import (
 const cacheTTL = 24 * time.Hour
 
 func Fetch(ctx context.Context, name, url string) ([]byte, error) {
-	cachePath, err := registryCachePath(name)
+	cacheRoot, err := os.UserCacheDir()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find cache directory: %w", err)
 	}
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	return fetchCached(
+		ctx,
+		filepath.Join(cacheRoot, "whose", "rdap"),
+		client,
+		name,
+		url,
+	)
+}
+
+func fetchCached(
+	ctx context.Context,
+	cacheDir string,
+	client *http.Client,
+	name string,
+	url string,
+) ([]byte, error) {
+	cachePath := filepath.Join(cacheDir, name+".json")
 
 	if data, ok := readFreshCache(cachePath); ok {
 		return data, nil
 	}
 
 	stale, _ := os.ReadFile(cachePath)
+	if !json.Valid(stale) {
+		stale = nil
+	}
 
-	data, err := fetch(ctx, url)
+	data, err := fetch(ctx, client, url)
 	if err != nil {
 		if stale != nil {
 			return stale, nil
@@ -33,20 +59,19 @@ func Fetch(ctx context.Context, name, url string) ([]byte, error) {
 		return nil, err
 	}
 
+	if !json.Valid(data) {
+		if stale != nil {
+			return stale, nil
+		}
+
+		return nil, fmt.Errorf("IANA registry returned invalid JSON")
+	}
+
 	if err := writeCache(cachePath, data); err != nil {
 		return data, nil
 	}
 
 	return data, nil
-}
-
-func registryCachePath(name string) (string, error) {
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return "", fmt.Errorf("find cache directory: %w", err)
-	}
-
-	return filepath.Join(dir, "whose", "rdap", name+".json"), nil
 }
 
 func readFreshCache(path string) ([]byte, bool) {
@@ -64,26 +89,56 @@ func readFreshCache(path string) ([]byte, bool) {
 		return nil, false
 	}
 
+	if !json.Valid(data) {
+		return nil, false
+	}
+
 	return data, true
 }
 
 func writeCache(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create cache directory: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("write registry cache: %w", err)
+	file, err := os.CreateTemp(dir, ".whose-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temporary cache file: %w", err)
+	}
+
+	tempPath := file.Name()
+
+	defer func() {
+		_ = file.Close()
+		_ = os.Remove(tempPath)
+	}()
+
+	if err := file.Chmod(0o644); err != nil {
+		return fmt.Errorf("set cache permissions: %w", err)
+	}
+
+	if _, err := file.Write(data); err != nil {
+		return fmt.Errorf("write temporary cache file: %w", err)
+	}
+
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close temporary cache file: %w", err)
+	}
+
+	if err := os.Rename(tempPath, path); err != nil {
+		return fmt.Errorf("replace registry cache: %w", err)
 	}
 
 	return nil
 }
 
-func fetch(ctx context.Context, url string) ([]byte, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
+func fetch(
+	ctx context.Context,
+	client *http.Client,
+	url string,
+) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create IANA registry request: %w", err)
